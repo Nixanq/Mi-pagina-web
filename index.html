@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Flappy Bird Web</title>
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+
+    #gameWrapper {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+      aspect-ratio: 400 / 708;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #restartScreen {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      color: #fff;
+    }
+
+    #restartScreen button {
+      padding: 12px 24px;
+      font-size: 18px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="gameWrapper">
+  <canvas id="game" width="400" height="708"></canvas>
+
+  <div id="restartScreen">
+    <h2>Game Over</h2>
+    <button onclick="restartGame()">Reiniciar</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const restartScreen = document.getElementById("restartScreen");
+
+// ===== IMÁGENES =====
+const background = new Image();
+background.src = "assets/background.png";
+
+const birdSprites = [
+  (() => { let i = new Image(); i.src = "assets/1.png"; return i; })(),
+  (() => { let i = new Image(); i.src = "assets/2.png"; return i; })(),
+  (() => { let i = new Image(); i.src = "assets/dead.png"; return i; })()
+];
+
+const wallUp = new Image();
+wallUp.src = "assets/bottom.png";
+
+const wallDown = new Image();
+wallDown.src = "assets/top.png";
+
+// ===== VARIABLES =====
+let gap = 149;
+let wallX;
+let birdY;
+let jump;
+let jumpSpeed;
+let gravity;
+let dead;
+let sprite;
+let counter;
+let offset;
+let bestScore = 0;
+
+function randOffset() {
+  return Math.floor(Math.random() * 220) - 110;
+}
+
+function initGame() {
+  wallX = 400;
+  birdY = 350;
+  jump = 0;
+  jumpSpeed = 10;
+  gravity = 5;
+  dead = false;
+  sprite = 0;
+  counter = 0;
+  offset = randOffset();
+  restartScreen.style.display = "none";
+}
+
+function updateWalls() {
+  wallX -= 2;
+  if (wallX < -80) {
+    wallX = 400;
+    counter++;
+    if(counter > bestScore) bestScore = counter;
+    offset = randOffset();
+  }
+}
+
+function birdUpdate() {
+  if (jump > 0) {
+    jumpSpeed -= 1;
+    birdY -= jumpSpeed;
+    jump--;
+  } else {
+    birdY += gravity;
+    gravity += 0.2;
+  }
+
+  // Loop vertical: si sale por arriba o abajo, aparece al otro lado
+  if (birdY < 0) birdY = canvas.height - 50;
+  if (birdY > canvas.height) birdY = 0;
+
+  // Hitbox ajustada
+  const birdRect = { x: 70, y: birdY + 5, w: 50 - 10, h: 50 - 10 };
+
+  // Rectángulos de tubos
+  const upRect = {
+    x: wallX,
+    y: 360 + gap - offset,
+    w: wallUp.width,
+    h: wallUp.height
+  };
+
+  const downRect = {
+    x: wallX,
+    y: 0 - gap - offset,
+    w: wallDown.width,
+    h: wallDown.height
+  };
+
+  if (collide(birdRect, upRect) || collide(birdRect, downRect)) {
+    dead = true;
+    restartScreen.style.display = "flex";
+  }
+}
+
+function collide(a, b) {
+  return a.x < b.x + b.w &&
+         a.x + a.w > b.x &&
+         a.y < b.y + b.h &&
+         a.y + a.h > b.y;
+}
+
+// ===== CONTROLES =====
+document.addEventListener("keydown", jumpBird);
+document.addEventListener("mousedown", jumpBird);
+document.addEventListener("touchstart", jumpBird);
+
+function jumpBird() {
+  if (!dead) {
+    jump = 17;
+    gravity = 5;
+    jumpSpeed = 10;
+  }
+}
+
+function restartGame() {
+  initGame();
+}
+
+// ===== LOOP =====
+function loop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.drawImage(background, 0, 0);
+  ctx.drawImage(wallUp, wallX, 360 + gap - offset);
+  ctx.drawImage(wallDown, wallX, 0 - gap - offset);
+
+  // puntuación
+  ctx.fillStyle = "#fff";
+  ctx.font = "50px Arial";
+  ctx.fillText(counter, 200, 50);
+
+  // best score box
+ctx.fillStyle = "#fff"; // color del cuadro
+ctx.fillRect(270, 10, 120, 40); // x, y, ancho, alto
+ctx.fillStyle = "#000"; // color del texto
+ctx.font = "20px Arial";
+ctx.fillText("Best: " + bestScore, 280, 35);
+
+
+  if (dead) sprite = 2;
+  else if (jump > 0) sprite = 1;
+  else sprite = 0;
+
+  ctx.drawImage(birdSprites[sprite], 70, birdY);
+
+  if (!dead) {
+    updateWalls();
+    birdUpdate();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+initGame();
+loop();
+</script>
+
+</body>
+</html>
